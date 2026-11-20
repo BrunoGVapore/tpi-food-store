@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+    --color-brand: #ea580c;
+    --color-brand-hover: #c2410c;
+    --color-brand-soft: #fff7ed;
+    --color-success: #16a34a;
+    --color-error: #dc2626;
+}
+
+body {
+    @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/* Clases reutilizables de paneles y formularios */
+@layer components {
+    .panel {
+        @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+    }
+
+    .page-title {
+        @apply text-2xl font-bold text-stone-900;
+    }
+
+    .form-label {
+        @apply mb-1 block text-sm font-medium text-stone-700;
+    }
+
+    .form-input {
+        @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 placeholder:text-stone-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:bg-stone-100;
+    }
+
+    .form-error {
+        @apply mt-1 text-xs text-error;
+    }
+
+    .alert-error {
+        @apply rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-error;
+    }
+}

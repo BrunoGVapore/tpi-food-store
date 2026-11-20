@@ -1,0 +1,25 @@
+# Versiones fijadas y probadas juntas (Python 3.11 a 3.13).
+
+# Framework REST + OpenAPI. El extra [standard] instala uvicorn, email-validator y la CLI.
+fastapi[standard]==0.115.12
+pydantic==2.11.7
+
+# ORM y schemas
+sqlmodel==0.0.24
+SQLAlchemy==2.0.41
+
+# Driver de PostgreSQL (DATABASE_URL con postgresql://)
+psycopg2-binary==2.9.10
+
+# Configuración leída desde .env
+pydantic-settings==2.9.1
+
+# Formulario OAuth2 del login
+python-multipart==0.0.20
+
+# JWT
+python-jose[cryptography]==3.5.0
+
+# Hash de contraseñas (passlib falla con bcrypt 5: se fijan ambas versiones)
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1

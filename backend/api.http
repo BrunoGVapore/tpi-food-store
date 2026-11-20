@@ -1,0 +1,315 @@
+### =====================================================================
+### Food Store API — pruebas con REST Client (extensión de VS Code)
+### Ejecutar en orden, de arriba hacia abajo. La cookie de sesión se
+### guarda automáticamente entre peticiones.
+### Antes: python -m app.db.seed  y  uvicorn app.main:app --reload
+### =====================================================================
+
+@base = http://localhost:8000/api/v1
+
+### ---------------------------------------------------------------------
+### 1. CATÁLOGO PÚBLICO (sin sesión)
+### ---------------------------------------------------------------------
+
+### 1.1 Categorías activas
+GET {{base}}/categorias
+
+### 1.2 Productos paginados (skip, limit)
+GET {{base}}/productos?skip=0&limit=5
+
+### 1.3 Búsqueda por nombre (sin distinguir mayúsculas) y filtro por categoría
+GET {{base}}/productos?search=pizza&categoria_id=1
+
+### 1.4 Detalle de un producto (incluye su categoría)
+GET {{base}}/productos/1
+
+### 1.5 Producto inexistente -> 404
+GET {{base}}/productos/9999
+
+### 1.6 Escritura sin sesión -> 401
+POST {{base}}/categorias
+Content-Type: application/json
+
+{ "nombre": "Sin sesión" }
+
+### ---------------------------------------------------------------------
+### 2. ADMIN: login y ABM de catálogo
+### ---------------------------------------------------------------------
+
+### 2.1 Login admin (formulario OAuth2). Respuesta: { "message": "Login exitoso" } + cookie
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 2.2 Perfil de la sesión
+GET {{base}}/auth/me
+
+### 2.3 Crear categoría -> 201
+POST {{base}}/categorias
+Content-Type: application/json
+
+{ "nombre": "Sándwiches", "descripcion": "Sándwiches de miga y lomitos" }
+
+### 2.4 Nombre duplicado (sin distinguir mayúsculas) -> 409
+POST {{base}}/categorias
+Content-Type: application/json
+
+{ "nombre": "pizzas" }
+
+### 2.5 Nombre demasiado corto -> 422
+POST {{base}}/categorias
+Content-Type: application/json
+
+{ "nombre": "A" }
+
+### 2.6 Actualización parcial de categoría -> 200
+PUT {{base}}/categorias/6
+Content-Type: application/json
+
+{ "descripcion": "Lomitos y sándwiches de miga" }
+
+### 2.7 Crear producto -> 201
+POST {{base}}/productos
+Content-Type: application/json
+
+{
+  "nombre": "Lomito completo",
+  "descripcion": "Lomo, jamón, queso, huevo y papas",
+  "precio_base": 14000,
+  "imagen_url": null,
+  "stock": 5,
+  "disponible": true,
+  "categoria_id": 6
+}
+
+### 2.8 Crear producto con categoría inexistente -> 404
+POST {{base}}/productos
+Content-Type: application/json
+
+{ "nombre": "Huérfano", "precio_base": 100, "categoria_id": 9999 }
+
+### 2.9 Precio negativo -> 422
+POST {{base}}/productos
+Content-Type: application/json
+
+{ "nombre": "Negativo", "precio_base": -1, "categoria_id": 1 }
+
+### 2.10 Actualizar solo el precio -> 200
+PUT {{base}}/productos/11
+Content-Type: application/json
+
+{ "precio_base": 14500 }
+
+### 2.11 Cambiar stock y disponibilidad -> 200
+PATCH {{base}}/productos/11/stock
+Content-Type: application/json
+
+{ "stock": 8, "disponible": true }
+
+### 2.12 Listado de usuarios (admin)
+GET {{base}}/admin/usuarios
+
+### 2.13 El admin no puede desactivarse a sí mismo -> 400
+POST {{base}}/admin/usuarios/1/desactivar
+
+### 2.14 Usuario inexistente -> 404
+POST {{base}}/admin/usuarios/9999/activar
+
+### 2.15 Cerrar sesión de admin
+POST {{base}}/auth/logout
+
+### ---------------------------------------------------------------------
+### 3. CLIENTE: registro, compra y cancelación (RN-01, RN-03, RN-04)
+### ---------------------------------------------------------------------
+
+### 3.1 Registro público (rol user) -> 201
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "cliente1",
+  "full_name": "Cliente de Prueba",
+  "email": "cliente1@example.com",
+  "password": "Cliente1234!"
+}
+
+### 3.2 Registro duplicado -> 409
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "cliente1",
+  "full_name": "Otro",
+  "email": "otro@example.com",
+  "password": "Cliente1234!"
+}
+
+### 3.3 Contraseña incorrecta -> 401
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=cliente1&password=incorrecta
+
+### 3.4 Login cliente -> 200
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=cliente1&password=Cliente1234!
+
+### 3.5 Crear pedido -> 201 (descuenta stock y copia nombre y precio)
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [
+    { "producto_id": 1, "cantidad": 2 },
+    { "producto_id": 8, "cantidad": 1 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. San Martín 1234, Mendoza",
+  "notas": "Tocar timbre 2B"
+}
+
+### 3.6 Ver stock del producto 1 (bajó 2 unidades)
+GET {{base}}/productos/1
+
+### 3.7 Producto repetido -> 400
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [
+    { "producto_id": 1, "cantidad": 1 },
+    { "producto_id": 1, "cantidad": 1 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. San Martín 1234"
+}
+
+### 3.8 Stock insuficiente -> 400 (no se persiste nada)
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [{ "producto_id": 10, "cantidad": 999 }],
+  "forma_pago": "TRANSFERENCIA",
+  "direccion_entrega": "Av. San Martín 1234"
+}
+
+### 3.9 Forma de pago inválida y dirección corta -> 422
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [{ "producto_id": 1, "cantidad": 1 }],
+  "forma_pago": "TARJETA",
+  "direccion_entrega": "abc"
+}
+
+### 3.10 Sin ítems -> 422
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{ "items": [], "forma_pago": "EFECTIVO", "direccion_entrega": "Av. San Martín 1234" }
+
+### 3.11 Mis pedidos (solo los propios)
+GET {{base}}/pedidos
+
+### 3.12 Detalle de mi pedido
+GET {{base}}/pedidos/1
+
+### 3.13 El resumen es solo para admin -> 403
+GET {{base}}/pedidos/resumen
+
+### 3.14 Cancelar mi pedido en PENDIENTE -> 200 (restituye stock)
+PATCH {{base}}/pedidos/1/cancelar
+
+### 3.15 Ver stock del producto 1 (volvió al valor original)
+GET {{base}}/productos/1
+
+### 3.16 Cancelar de nuevo -> 400 (ya no está en PENDIENTE)
+PATCH {{base}}/pedidos/1/cancelar
+
+### 3.17 Crear otro pedido para que lo gestione el admin
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [{ "producto_id": 4, "cantidad": 1 }],
+  "forma_pago": "TRANSFERENCIA",
+  "direccion_entrega": "Calle Falsa 123, Godoy Cruz"
+}
+
+### 3.18 El cliente no puede cambiar estados -> 403
+PATCH {{base}}/pedidos/2/estado
+Content-Type: application/json
+
+{ "estado": "EN_PREPARACION" }
+
+### 3.19 Cerrar sesión del cliente
+POST {{base}}/auth/logout
+
+### ---------------------------------------------------------------------
+### 4. ADMIN: gestión de pedidos (RN-02) y resumen
+### ---------------------------------------------------------------------
+
+### 4.1 Login admin
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 4.2 Todos los pedidos, filtrando por estado
+GET {{base}}/pedidos?estado=PENDIENTE
+
+### 4.3 Transición inválida PENDIENTE -> ENTREGADO -> 400
+PATCH {{base}}/pedidos/2/estado
+Content-Type: application/json
+
+{ "estado": "ENTREGADO" }
+
+### 4.4 PENDIENTE -> EN_PREPARACION -> 200
+PATCH {{base}}/pedidos/2/estado
+Content-Type: application/json
+
+{ "estado": "EN_PREPARACION" }
+
+### 4.5 EN_PREPARACION -> ENTREGADO -> 200
+PATCH {{base}}/pedidos/2/estado
+Content-Type: application/json
+
+{ "estado": "ENTREGADO" }
+
+### 4.6 Estado terminal: ENTREGADO -> CANCELADO -> 400
+PATCH {{base}}/pedidos/2/estado
+Content-Type: application/json
+
+{ "estado": "CANCELADO" }
+
+### 4.7 Un pedido cancelado no admite cambios -> 400
+PATCH {{base}}/pedidos/1/estado
+Content-Type: application/json
+
+{ "estado": "EN_PREPARACION" }
+
+### 4.8 Resumen del negocio
+GET {{base}}/pedidos/resumen
+
+### 4.9 Desactivar al cliente (id 2) -> 200; idempotente si se repite
+POST {{base}}/admin/usuarios/2/desactivar
+
+### 4.10 Activarlo de nuevo -> 200
+POST {{base}}/admin/usuarios/2/activar
+
+### 4.11 Baja lógica de producto -> 204 (deja de aparecer en el catálogo)
+DELETE {{base}}/productos/11
+
+### 4.12 Producto dado de baja -> 404
+GET {{base}}/productos/11
+
+### 4.13 Baja lógica de categoría -> 204
+DELETE {{base}}/categorias/6
+
+### 4.14 Cerrar sesión
+POST {{base}}/auth/logout

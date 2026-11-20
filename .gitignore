@@ -1,0 +1,19 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.db
+
+# Node
+node_modules/
+dist/
+
+# Variables de entorno (se versionan solo los .env.example)
+.env
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
